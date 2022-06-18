@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 import cupy as cp
 import numpy as np
@@ -20,7 +20,7 @@ class Direction(Enum):
 
 
 def glcm(
-    im: np.ndarray,
+    im: Union[np.ndarray, cp.ndarray],
     step_size: int = 1,
     radius: int = 2,
     bin_from: int = 256,
@@ -33,7 +33,7 @@ def glcm(
     max_threads: int = MAX_THREADS,
     normalized_features: bool = True,
     verbose: bool = True
-) -> np.ndarray:
+) -> Union[np.ndarray, cp.ndarray]:
     """
     Examples:
         To scale image values from a 128 max value to 32, we use
@@ -86,19 +86,22 @@ class GLCM(GLCMBase):
         if self.step_size <= 0:
             raise ValueError(f"Step Size {step_size} should be >= 1")
 
-    def glcm_cells(self, im: np.ndarray) -> float:
+    def glcm_cells(self, im: Union[np.ndarray, cp.ndarray]) -> float:
         """ Total number of GLCM cells to process """
         return np.prod(self.glcm_shape(im[..., 0])) * \
                len(self.directions) * \
                im.shape[-1]
 
-    def glcm_shape(self, im_chn: np.ndarray) -> Tuple[int, int]:
+    def glcm_shape(self, im_chn: Union[np.ndarray,
+                                       cp.ndarray]) -> Tuple[int, int]:
         """ Get per-channel shape after GLCM """
 
         return (im_chn.shape[0] - 2 * self.step_size - 2 * self.radius,
                 im_chn.shape[1] - 2 * self.step_size - 2 * self.radius)
 
-    def _from_im(self, im: np.ndarray) -> np.ndarray:
+    def _from_im(self, im: Union[np.ndarray,
+                                 cp.ndarray]) -> Union[np.ndarray,
+                                                       cp.ndarray]:
         """ Generates the GLCM from a multichannel image
 
         Args:
@@ -107,13 +110,21 @@ class GLCM(GLCMBase):
         Returns:
             The GLCM Array with shape (H, W, C, F)
         """
+        if isinstance(im, cp.ndarray):
+            return cp.stack([
+                self._from_channel(im[..., ch]) for ch in range(im.shape[-1])
+            ], axis=2)
 
         return np.stack([
             self._from_channel(im[..., ch]) for ch in range(im.shape[-1])
         ], axis=2)
 
-    def make_windows(self, im_chn: np.ndarray) -> List[Tuple[np.ndarray,
-                                                             np.ndarray]]:
+    def make_windows(self,
+                     im_chn: Union[np.ndarray,
+                                   cp.ndarray]) -> List[Tuple[Union[np.ndarray,
+                                                                    cp.ndarray],
+                                                              Union[np.ndarray,
+                                                                    cp.ndarray]]]:
         """ Convert a image channel np.ndarray, to GLCM IJ windows.
 
         Examples:
@@ -177,7 +188,8 @@ class GLCM(GLCMBase):
             view_as_windows(im_chn, (self._diameter, self._diameter))
         )
 
-        ijs: List[Tuple[np.ndarray, np.ndarray]] = []
+        ijs: List[Tuple[Union[np.ndarray, cp.ndarray],
+                        Union[np.ndarray, cp.ndarray]]] = []
 
         for direction in self.directions:
             i, j = self.pair_windows(ij, direction=direction)
@@ -190,7 +202,8 @@ class GLCM(GLCMBase):
 
         return ijs
 
-    def pair_windows(self, ij: np.ndarray, direction: Direction):
+    def pair_windows(self, ij: Union[np.ndarray, cp.ndarray],
+                     direction: Direction):
         """ Pairs the ij windows in specified direction
 
         Notes:
