@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import combinations
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 import cupy as cp
 import numpy as np
@@ -13,7 +13,7 @@ from glcm_cupy.glcm_base import GLCMBase
 
 
 def glcm_cross(
-    im: np.ndarray,
+    im: Union[np.ndarray, cp.ndarray],
     radius: int = 2,
     bin_from: int = 256,
     bin_to: int = 256,
@@ -22,7 +22,7 @@ def glcm_cross(
     normalized_features: bool = True,
     verbose: bool = True,
     ix_combos: List[Tuple[int, int]] | None = None
-) -> np.ndarray:
+) -> Union[np.ndarray, cp.ndarray]:
     """ Runs the Cross GLCM algorithm
 
     Notes:
@@ -72,25 +72,33 @@ class GLCMCross(GLCMBase):
     """
     ix_combos: List[Tuple[int, int]] | None = None
 
-    def ch_combos(self, im: np.ndarray) -> List[np.ndarray]:
+    def ch_combos(self, im: Union[np.ndarray,
+                                  cp.ndarray]) -> List[Union[np.ndarray,
+                                                             cp.ndarray]]:
         """ Get Image Channel Combinations """
         if self.ix_combos is None:
             # noinspection PyTypeChecker
             self.ix_combos = list(combinations(range(im.shape[-1]), 2))
         return [im[..., ix_combo] for ix_combo in self.ix_combos]
 
-    def glcm_cells(self, im: np.ndarray) -> float:
+    def glcm_cells(self, im: Union[np.ndarray, cp.ndarray]) -> float:
         """ Total number of GLCM cells to process """
         shape = self.glcm_shape(im[..., 0])
+
+        if isinstance(shape, cp.ndarray):
+            return cp.prod(shape) * len(self.ch_combos(im))
+
         return np.prod(shape) * len(self.ch_combos(im))
 
-    def glcm_shape(self, im_chn: np.ndarray) -> Tuple[int, int]:
+    def glcm_shape(self, im_chn: Union[np.ndarray, cp.ndarray]) -> Tuple[int, int]:
         """ Get per-channel shape after GLCM """
 
         return im_chn.shape[0] - 2 * self.radius, \
                im_chn.shape[1] - 2 * self.radius
 
-    def _from_im(self, im: np.ndarray) -> np.ndarray:
+    def _from_im(self, im: Union[np.ndarray,
+                                 cp.ndarray]) -> Union[np.ndarray,
+                                                       cp.ndarray]:
         """ Generates the GLCM from a multichannel image
 
         Args:
@@ -105,10 +113,17 @@ class GLCMCross(GLCMBase):
             raise ValueError(f"Cross GLCM needs >= 2 channels to combine")
         glcm_chs = [self._from_channel(ch_combo) for ch_combo in ch_combos]
 
+        if isinstance(glcm_chs, cp.ndarray):
+            return cp.stack(glcm_chs, axis=2)
+
         return np.stack(glcm_chs, axis=2)
 
-    def make_windows(self, im_chn: np.ndarray) -> List[Tuple[np.ndarray,
-                                                             np.ndarray]]:
+    def make_windows(self,
+                     im_chn: Union[np.ndarray,
+                                   cp.ndarray]) -> List[Tuple[Union[np.ndarray,
+                                                                    cp.ndarray],
+                                                              Union[np.ndarray,
+                                                                    cp.ndarray]]]:
         """ Convert a image dual channel np.ndarray, to GLCM IJ windows.
 
         Examples:

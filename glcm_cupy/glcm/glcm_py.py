@@ -44,7 +44,10 @@ class GLCMPy(GLCMPyBase):
 
     def glcm_chn(self, ar: Union[np.ndarray, cp.ndarray]):
 
-        ar = (ar / self.bin_from * self.bin_to).astype(np.uint8)
+        if isinstance(ar, cp.ndarray):
+            ar = (ar / self.bin_from * self.bin_to).astype(cp.uint8)
+        else:
+            ar = (ar / self.bin_from * self.bin_to).astype(np.uint8)
         ar_w = view_as_windows(ar, (self.diameter, self.diameter))
 
         def flat(ar: Union[np.ndarray, cp.ndarray]):

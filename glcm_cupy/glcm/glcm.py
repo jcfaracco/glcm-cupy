@@ -88,6 +88,10 @@ class GLCM(GLCMBase):
 
     def glcm_cells(self, im: Union[np.ndarray, cp.ndarray]) -> float:
         """ Total number of GLCM cells to process """
+        if isinstance(im, cp.ndarray):
+            return cp.prod(self.glcm_shape(im[..., 0])) * \
+                   len(self.directions) * \
+                   im.shape[-1]
         return np.prod(self.glcm_shape(im[..., 0])) * \
                len(self.directions) * \
                im.shape[-1]

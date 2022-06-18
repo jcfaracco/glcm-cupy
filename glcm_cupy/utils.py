@@ -40,7 +40,10 @@ def calc_grid_size(
     return b, b
 
 
-def binner(im: Union[np.ndarray, cp.ndarray], bin_from: int, bin_to: int) -> np.ndarray:
+def binner(im: Union[np.ndarray,
+                     cp.ndarray],
+           bin_from: int, bin_to: int) -> Union[np.ndarray,
+                                                cp.ndarray]:
     """ Bins an image from a certain bin to another
 
     Args:
@@ -49,7 +52,10 @@ def binner(im: Union[np.ndarray, cp.ndarray], bin_from: int, bin_to: int) -> np.
         bin_to: To the Bin of output image
 
     Returns:
-        Binned Image as np.uint8
+        Binned Image as np.uint8 or cp.uint8
 
     """
+    # Convert to compatible types
+    if isinstance(im, cp.ndarray):
+        return (im.astype(cp.float32) / bin_from * bin_to).astype(cp.uint8)
     return (im.astype(np.float32) / bin_from * bin_to).astype(np.uint8)

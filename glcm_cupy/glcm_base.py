@@ -169,7 +169,10 @@ class GLCMBase:
                 .get() for i, j in self.make_windows(im_chn)
         ]
 
-        ar = np.stack(glcm_features).mean(axis=0)
+        if isinstance(im_chn, cp.ndarray):
+            ar = cp.stack(glcm_features).mean(axis=0)
+        else:
+            ar = np.stack(glcm_features).mean(axis=0)
 
         return normalize_features(ar, self.bin_to) \
             if self.normalized_features else ar
@@ -253,9 +256,10 @@ class GLCMBase:
         no_of_windows = i.shape[0]
         no_of_values = self._diameter ** 2
 
-        if i.dtype != np.uint8 or j.dtype != np.uint8:
+        if i.dtype != np.uint8 or j.dtype != np.uint8 or \
+           i.dtype != cp.uint8 or j.dtype != cp.uint8:
             raise ValueError(
-                f"Image dtype must be np.uint8,"
+                f"Image dtype must be np.uint8 or cp.uint8,"
                 f" i: {i.dtype} j: {j.dtype}"
             )
 
