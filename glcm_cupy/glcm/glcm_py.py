@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from typing import Union
 
+import cupy as cp
 import numpy as np
 from skimage.util import view_as_windows
 from tqdm import tqdm

@@ -6,7 +6,8 @@ from typing import Tuple, List, Union
 
 import cupy as cp
 import numpy as np
-from skimage.util import view_as_windows
+from skimage.util import view_as_windows as view_as_windows_np
+from cucim.skimage.util.shape import view_as_windows as view_as_windows_cp
 
 from glcm_cupy.conf import *
 from glcm_cupy.glcm_base import GLCMBase
@@ -89,7 +90,9 @@ class GLCM(GLCMBase):
     def glcm_cells(self, im: Union[np.ndarray, cp.ndarray]) -> float:
         """ Total number of GLCM cells to process """
         if isinstance(im, cp.ndarray):
-            return cp.prod(self.glcm_shape(im[..., 0])) * \
+            # TODO cp.prod does not accept tuples: CuPy #4466, #6792.
+            shape = cp.prod(cp.array(self.glcm_shape(im[..., 0])))
+            return cp.prod(shape) * \
                    len(self.directions) * \
                    im.shape[-1]
         return np.prod(self.glcm_shape(im[..., 0])) * \
@@ -188,9 +191,12 @@ class GLCM(GLCMBase):
                 f"- 2 * radius {self.radius} + 1 <= 0 was not satisfied."
             )
 
-        ij = cp.asarray(
-            view_as_windows(im_chn, (self._diameter, self._diameter))
-        )
+        if isinstance(im_chn, cp.ndarray):
+            ij = view_as_windows_cp(im_chn, (self._diameter, self._diameter))
+        else:
+            ij = cp.asarray(
+                view_as_windows_np(im_chn, (self._diameter, self._diameter))
+            )
 
         ijs: List[Tuple[Union[np.ndarray, cp.ndarray],
                         Union[np.ndarray, cp.ndarray]]] = []

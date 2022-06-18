@@ -114,6 +114,11 @@ class GLCMBase:
             )
         if im.ndim != 3:
             raise ValueError("Only 3D images allowed.")
+
+        # XXX: there is a bug with cupy true_div and tqdm.
+        if isinstance(im, cp.ndarray):
+            self.verbose = False
+
         self.progress = tqdm(total=self.glcm_cells(im),
                              desc="GLCM Progress",
                              unit=" Cells",
@@ -163,15 +168,21 @@ class GLCMBase:
 
         glcm_h, glcm_w, *_ = self.glcm_shape(im_chn)
 
-        glcm_features = [
-            self.glcm_window_ij(i, j)
-                .reshape(glcm_h, glcm_w, NO_OF_FEATURES)
-                .get() for i, j in self.make_windows(im_chn)
-        ]
-
         if isinstance(im_chn, cp.ndarray):
+            glcm_features = [
+                self.glcm_window_ij(i, j)
+                    .reshape(glcm_h, glcm_w, NO_OF_FEATURES)
+                    for i, j in self.make_windows(im_chn)
+            ]
+
             ar = cp.stack(glcm_features).mean(axis=0)
         else:
+            glcm_features = [
+                self.glcm_window_ij(i, j)
+                    .reshape(glcm_h, glcm_w, NO_OF_FEATURES)
+                    .get() for i, j in self.make_windows(im_chn)
+            ]
+
             ar = np.stack(glcm_features).mean(axis=0)
 
         return normalize_features(ar, self.bin_to) \

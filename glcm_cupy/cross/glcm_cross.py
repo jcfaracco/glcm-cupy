@@ -6,7 +6,8 @@ from typing import Tuple, List, Union
 
 import cupy as cp
 import numpy as np
-from skimage.util import view_as_windows
+from skimage.util import view_as_windows as view_as_windows_np
+from cucim.skimage.util.shape import view_as_windows as view_as_windows_cp
 
 from glcm_cupy.conf import *
 from glcm_cupy.glcm_base import GLCMBase
@@ -175,10 +176,14 @@ class GLCMCross(GLCMBase):
                 f"- 2 * radius {self.radius} + 1 <= 0 was not satisfied."
             )
 
-        i = cp.asarray(
-            view_as_windows(im_chn[..., 0], (self._diameter, self._diameter)))
-        j = cp.asarray(
-            view_as_windows(im_chn[..., 1], (self._diameter, self._diameter)))
+        if isinstance(im_chn, cp.ndarray):
+            i = view_as_windows_cp(im_chn[..., 0], (self._diameter, self._diameter))
+            j = view_as_windows_cp(im_chn[..., 1], (self._diameter, self._diameter))
+        else:
+            i = cp.asarray(
+                view_as_windows_np(im_chn[..., 0], (self._diameter, self._diameter)))
+            j = cp.asarray(
+                view_as_windows_np(im_chn[..., 1], (self._diameter, self._diameter)))
 
         i = i.reshape((-1, *i.shape[-2:])) \
             .reshape((i.shape[0] * i.shape[1], -1))
